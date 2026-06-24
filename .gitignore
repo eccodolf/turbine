@@ -1,0 +1,11 @@
+.superpowers/
+output/
+dist/
+build/
+*.stl
+*.3mf
+*.glb
+*.step
+*.stp
+__pycache__/
+*.pyc
