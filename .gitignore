@@ -1,11 +1,11 @@
 .superpowers/
+.venv/
+.cad-viewer*.log
 output/
 dist/
 build/
 *.stl
 *.3mf
 *.glb
-*.step
-*.stp
 __pycache__/
 *.pyc
