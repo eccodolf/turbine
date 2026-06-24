@@ -5,6 +5,8 @@ output/
 dist/
 build/
 *.stl
+!models/stl/
+!models/stl/*.stl
 *.3mf
 *.glb
 __pycache__/

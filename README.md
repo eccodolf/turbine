@@ -44,7 +44,7 @@ Generated files:
 - `models/parts/*.step`
 - `models/stl/*.stl`
 
-STL files are ignored because they are derived mesh outputs. Regenerate them from `src/turbine_assembly.py` when needed.
+STEP files are the primary CAD artifacts. STL files are derived printable sidecars and are included for immediate slicing; regenerate them from `src/turbine_assembly.py` when geometry changes.
 
 ## Validation Workflow
 
