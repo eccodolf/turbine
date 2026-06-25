@@ -16,8 +16,8 @@ The approved concept is documented in `docs/superpowers/specs/2026-06-25-powered
 ## Model Features
 
 - Trent-style high-bypass cutaway nacelle with rounded inlet/nozzle lips and open C-section stator cascades
-- 24-blade swept front fan with curved airfoil profiles, spinner stripes, seven IPC stages, five HPC stages, and N1/N2/N3 turbine stages
-- Visible planetary gearbox cluster, annular combustor liner detail, flange bolts, and external pipe detail
+- 24-blade swept front fan with thin curved airfoil profiles, spinner stripes, seven IPC stages, five HPC stages, and N1/N2/N3 turbine stages
+- Dense mini-engine detailing: thin interstage stator cascades, casing/flange bands, fasteners, annular combustor liner detail, and external pipe/valve detail
 - Removable rotor cartridge on an 8 mm shaft
 - 608 bearing supports
 - Hidden GT2 belt-drive display base
@@ -47,7 +47,7 @@ Generated files:
 - `models/parts/*.step`
 - `models/stl/*.stl`
 
-Printable groups include the drive base, service cover, lower nacelle frame, upper cutaway outline, rotor cartridge, gearbox cluster, combustor chamber, external pipe detail, rear nozzle, and three stator rings. STEP files are the primary CAD artifacts. STL files are derived printable sidecars and are included for immediate slicing; regenerate them from `src/turbine_assembly.py` when geometry changes.
+Printable groups include the drive base, service cover, lower nacelle frame, optional removed upper cutaway outline, rotor cartridge, combustor chamber, external pipe detail, rear nozzle, and multiple thin stator/guide-vane rings. The visible gearbox cluster is not part of the installed assembly because it blocks the powered rotor path; the drive remains hidden in the base. STEP files are the primary CAD artifacts. STL files are derived printable sidecars and are included for immediate slicing; regenerate them from `src/turbine_assembly.py` when geometry changes.
 
 ## Validation Workflow
 

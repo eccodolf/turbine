@@ -1,7 +1,7 @@
 ISO-10303-21;
 HEADER;
 FILE_DESCRIPTION(('Open CASCADE Model'),'2;1');
-FILE_NAME('service_cover','2026-06-25T05:05:51',('Author'),(
+FILE_NAME('service_cover','2026-06-25T05:20:43',('Author'),(
     'Open CASCADE'),'Open CASCADE STEP processor 7.9','build123d',
   'Unknown');
 FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }'));
@@ -824,7 +824,7 @@ SHAPE_REPRESENTATION_RELATIONSHIP() );
 #706 = ITEM_DEFINED_TRANSFORMATION('','',#11,#15);
 #707 = PRODUCT_DEFINITION_SHAPE('Placement','Placement of an item',#708
   );
-#708 = NEXT_ASSEMBLY_USAGE_OCCURRENCE('1031','service_cover','',#5,#27,$
+#708 = NEXT_ASSEMBLY_USAGE_OCCURRENCE('1215','service_cover','',#5,#27,$
   );
 #709 = PRODUCT_RELATED_PRODUCT_CATEGORY('part',$,(#29));
 ENDSEC;

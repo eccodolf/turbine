@@ -219,7 +219,7 @@ def _swept_fan_blade(
     x: float,
     inner_radius: float,
     outer_radius: float,
-    thickness_x: float,
+    blade_thickness_x: float,
     angle_deg: float,
     label: str,
 ):
@@ -227,28 +227,29 @@ def _swept_fan_blade(
         x=x,
         inner_radius=inner_radius,
         outer_radius=outer_radius,
-        root_chord=12.0,
-        tip_chord=23.0,
-        thickness_x=thickness_x,
+        root_chord=9.0,
+        tip_chord=18.0,
+        thickness_x=blade_thickness_x,
         angle_deg=angle_deg,
-        sweep_deg=38.0,
+        sweep_deg=42.0,
         label=f"{label}_airfoil",
     )
+    rib_thickness = 0.7
     raised_rib = _curved_blade(
-        x=x + thickness_x / 2.0 + 0.9,
+        x=x + blade_thickness_x / 2.0 - rib_thickness / 2.0,
         inner_radius=inner_radius + 4.0,
         outer_radius=outer_radius - 5.0,
-        root_chord=2.2,
-        tip_chord=3.0,
-        thickness_x=1.8,
+        root_chord=1.4,
+        tip_chord=2.2,
+        thickness_x=rib_thickness,
         angle_deg=angle_deg,
-        sweep_deg=38.0,
+        sweep_deg=42.0,
         label=f"{label}_raised_midrib",
     )
     return _label(Compound(children=[blade, raised_rib]), label)
 
 
-def _fan_stage(x: float, outer_radius: float, thickness: float, blade_count: int, label: str):
+def _fan_stage(x: float, outer_radius: float, thickness: float, blade_count: int, label: str, blade_thickness: float = 2.0):
     hub = _placed(_x_cylinder(radius=24.0, length=thickness + 8.0), x=x, z=SHAFT_CENTER_Z, label=f"{label}_hub")
     blade_root = _placed(_x_cylinder(radius=31.0, length=thickness), x=x, z=SHAFT_CENTER_Z, label=f"{label}_root_ring")
     bolt_heads = []
@@ -260,7 +261,7 @@ def _fan_stage(x: float, outer_radius: float, thickness: float, blade_count: int
     blades = []
     for index in range(blade_count):
         angle = index * 360.0 / blade_count
-        blades.append(_swept_fan_blade(x, 29.0, outer_radius, thickness, angle, f"{label}_blade_{index + 1:02d}"))
+        blades.append(_swept_fan_blade(x, 29.0, outer_radius, blade_thickness, angle, f"{label}_blade_{index + 1:02d}"))
     return _label(Compound(children=[hub, blade_root, *bolt_heads, *blades]), label)
 
 
@@ -272,6 +273,9 @@ def _stage_disk(
     label: str,
     hub_radius: float = 14.0,
     blade_sweep: float = 16.0,
+    blade_thickness: float = 1.35,
+    root_chord_scale: float = 0.075,
+    tip_chord_scale: float = 0.105,
 ):
     hub = _placed(_x_cylinder(radius=hub_radius, length=thickness + 4.0), x=x, z=SHAFT_CENTER_Z, label=f"{label}_hub")
     blade_root = _placed(
@@ -287,9 +291,9 @@ def _stage_disk(
             x=x,
             inner_radius=hub_radius + 5.0,
             outer_radius=outer_radius,
-            root_chord=max(5.5, outer_radius * 0.12),
-            tip_chord=max(7.0, outer_radius * 0.18),
-            thickness_x=thickness,
+            root_chord=max(3.0, outer_radius * root_chord_scale),
+            tip_chord=max(3.8, outer_radius * tip_chord_scale),
+            thickness_x=blade_thickness,
             angle_deg=angle,
             sweep_deg=blade_sweep,
             label=f"{label}_blade_{index + 1:02d}",
@@ -316,6 +320,7 @@ def _open_vaned_ring(
     )
     ring = outer - inner_cut - cutaway
     vanes = []
+    vane_thickness = min(1.4, max(1.0, thickness_x * 0.4))
     start_deg = 35.0
     end_deg = 325.0
     for index in range(vane_count):
@@ -325,9 +330,9 @@ def _open_vaned_ring(
                 x=x_position,
                 inner_radius=inner_radius + 4.0,
                 outer_radius=outer_radius - 5.0,
-                root_chord=3.6,
-                tip_chord=5.0,
-                thickness_x=thickness_x,
+                root_chord=2.2,
+                tip_chord=3.4,
+                thickness_x=vane_thickness,
                 angle_deg=angle,
                 sweep_deg=-10.0,
                 label=f"{name}_vane_{index + 1:02d}",
@@ -396,6 +401,10 @@ def _bolt_arc(x: float, radius: float, count: int, bolt_radius: float, bolt_leng
     return _label(Compound(children=bolts), label)
 
 
+def _case_band(x: float, radius: float, label: str):
+    return _open_case_ring(x, radius, 1.4, 1.0, label)
+
+
 def make_base():
     base = Box(BASE_LENGTH, BASE_WIDTH, BASE_HEIGHT)
     belt_slot = _placed(Box(38.0, 34.0, BASE_HEIGHT + 4.0), x=-8.0, z=BASE_Z + 5.0)
@@ -456,10 +465,28 @@ def make_lower_nacelle():
     turbine_case_ring = _open_case_ring(92.0, 59.0, 8.0, 4.0, "rear_turbine_case_ring")
     nozzle_ring = _open_case_ring(142.0, 64.0, 14.0, 4.0, "rear_nozzle_ring")
     nozzle_round_lip = _placed(_x_torus(major_radius=61.0, minor_radius=2.0), x=153.0, z=SHAFT_CENTER_Z, label="rounded_nozzle_lip")
+    case_bands = [
+        _case_band(-124.0, NACELLE_RADIUS + 2.0, "fan_cowl_panel_band_1"),
+        _case_band(-110.0, NACELLE_RADIUS + 1.0, "fan_cowl_panel_band_2"),
+        _case_band(-82.0, 58.0, "ipc_case_panel_band_1"),
+        _case_band(-68.0, 56.0, "ipc_case_panel_band_2"),
+        _case_band(-54.0, 54.0, "ipc_case_panel_band_3"),
+        _case_band(-26.0, 49.0, "core_case_panel_band_1"),
+        _case_band(-2.0, 46.0, "core_case_panel_band_2"),
+        _case_band(34.0, 45.0, "hpc_case_panel_band_1"),
+        _case_band(58.0, 43.0, "hpc_case_panel_band_2"),
+        _case_band(78.0, 52.0, "turbine_transition_band"),
+        _case_band(112.0, 60.0, "lp_turbine_case_panel_band_1"),
+        _case_band(130.0, 62.0, "lp_turbine_case_panel_band_2"),
+    ]
     flange_bolts = [
         _bolt_arc(-136.0, 83.5, 30, 1.3, 2.2, "inlet_flange_bolt"),
         _bolt_arc(92.0, 56.5, 22, 1.2, 2.0, "turbine_case_bolt"),
         _bolt_arc(142.0, 62.0, 18, 1.2, 2.0, "nozzle_flange_bolt"),
+        _bolt_arc(-82.0, 56.5, 20, 0.85, 1.5, "ipc_panel_fastener_1"),
+        _bolt_arc(-26.0, 48.0, 18, 0.8, 1.5, "core_panel_fastener_1"),
+        _bolt_arc(58.0, 42.0, 18, 0.75, 1.4, "hpc_panel_fastener_1"),
+        _bolt_arc(112.0, 59.0, 20, 0.85, 1.5, "lp_turbine_panel_fastener_1"),
     ]
     lower_keel = _placed(Box(288.0, 10.0, 7.0), x=2.0, z=SHAFT_CENTER_Z - 73.0, label="lower_cutaway_keel")
     left_cut_edge = _placed(Box(278.0, 5.0, 6.0), x=2.0, y=-NACELLE_RADIUS + 6.0, z=SHAFT_CENTER_Z + 2.0, label="left_section_edge")
@@ -481,6 +508,7 @@ def make_lower_nacelle():
                 turbine_case_ring,
                 nozzle_ring,
                 nozzle_round_lip,
+                *case_bands,
                 *flange_bolts,
                 lower_keel,
                 left_cut_edge,
@@ -610,8 +638,18 @@ def make_external_pipes():
         _radial_surface_box(-20.0, upper_saddle_radius + 1.0, upper_angle, 14.0, 12.0, 8.0, "upper_fairing_sensor_box"),
         _radial_surface_box(72.0, lower_saddle_radius + 1.0, lower_angle, 14.0, 12.0, 8.0, "lower_fairing_sensor_box"),
     ]
+    small_tubes = [
+        _pipe_run([_surface_point(x, NACELLE_RADIUS + 6.5, upper_angle + 4.0) for x in (-72.0, -18.0, 36.0)], 1.2, "upper_small_sensor_tube_a"),
+        _pipe_run([_surface_point(x, NACELLE_RADIUS + 6.0, upper_angle - 5.0) for x in (48.0, 82.0, 116.0)], 1.1, "upper_small_sensor_tube_b"),
+        _pipe_run([_surface_point(x, NACELLE_RADIUS + 2.4, lower_angle - 3.0) for x in (-70.0, -20.0, 30.0)], 1.1, "lower_small_oil_tube_a"),
+    ]
+    valve_blocks = [
+        _radial_surface_box(-54.0, upper_saddle_radius + 1.8, upper_angle + 4.0, 8.0, 7.0, 5.0, "upper_line_small_valve_a"),
+        _radial_surface_box(82.0, upper_saddle_radius + 1.6, upper_angle - 5.0, 8.0, 7.0, 5.0, "upper_line_small_valve_b"),
+        _radial_surface_box(-20.0, lower_saddle_radius + 1.4, lower_angle - 3.0, 8.0, 7.0, 5.0, "lower_line_small_valve_a"),
+    ]
     return _label(
-        Compound(children=[upper_fuel_line, lower_oil_line, *clamps, *saddle_pads, *support_webs, *sensor_boxes]),
+        Compound(children=[upper_fuel_line, lower_oil_line, *small_tubes, *clamps, *saddle_pads, *support_webs, *sensor_boxes, *valve_blocks]),
         "external_pipe_detail",
     )
 
@@ -662,28 +700,28 @@ def make_rotor_stack():
         _placed(_x_torus(major_radius=23.0, minor_radius=0.9), x=-129.0, z=SHAFT_CENTER_Z, label="spinner_stripe_front"),
         _placed(_x_torus(major_radius=27.0, minor_radius=0.9), x=-121.0, z=SHAFT_CENTER_Z, label="spinner_stripe_rear"),
     ]
-    fan = _fan_stage(-112.0, FAN_RADIUS, 13.0, 24, "large_front_swept_fan")
+    fan = _fan_stage(-112.0, FAN_RADIUS, 13.0, 24, "large_front_swept_fan", blade_thickness=2.0)
     compressor_stages = [
-        _stage_disk(-78.0, 46.0, 6.5, 20, "ipc_stage_1", hub_radius=17.0, blade_sweep=18.0),
-        _stage_disk(-64.0, 44.0, 6.5, 20, "ipc_stage_2", hub_radius=16.5, blade_sweep=17.0),
-        _stage_disk(-50.0, 42.0, 6.5, 20, "ipc_stage_3", hub_radius=16.0, blade_sweep=16.0),
-        _stage_disk(-36.0, 40.0, 6.0, 20, "ipc_stage_4", hub_radius=15.5, blade_sweep=15.0),
-        _stage_disk(-22.0, 38.0, 6.0, 20, "ipc_stage_5", hub_radius=15.0, blade_sweep=14.0),
-        _stage_disk(-8.0, 36.0, 6.0, 20, "ipc_stage_6", hub_radius=14.5, blade_sweep=13.0),
-        _stage_disk(6.0, 34.5, 6.0, 20, "ipc_stage_7", hub_radius=14.0, blade_sweep=12.0),
-        _stage_disk(22.0, 33.0, 5.5, 18, "hpc_stage_1", hub_radius=13.5, blade_sweep=12.0),
-        _stage_disk(34.0, 31.0, 5.5, 18, "hpc_stage_2", hub_radius=13.0, blade_sweep=11.0),
-        _stage_disk(46.0, 29.5, 5.5, 18, "hpc_stage_3", hub_radius=12.5, blade_sweep=10.0),
-        _stage_disk(58.0, 28.0, 5.5, 18, "hpc_stage_4", hub_radius=12.0, blade_sweep=9.0),
-        _stage_disk(70.0, 27.0, 5.5, 18, "hpc_stage_5", hub_radius=12.0, blade_sweep=8.0),
+        _stage_disk(-78.0, 46.0, 6.5, 20, "ipc_stage_1", hub_radius=17.0, blade_sweep=18.0, blade_thickness=1.35),
+        _stage_disk(-64.0, 44.0, 6.5, 20, "ipc_stage_2", hub_radius=16.5, blade_sweep=17.0, blade_thickness=1.3),
+        _stage_disk(-50.0, 42.0, 6.5, 20, "ipc_stage_3", hub_radius=16.0, blade_sweep=16.0, blade_thickness=1.3),
+        _stage_disk(-36.0, 40.0, 6.0, 20, "ipc_stage_4", hub_radius=15.5, blade_sweep=15.0, blade_thickness=1.25),
+        _stage_disk(-22.0, 38.0, 6.0, 20, "ipc_stage_5", hub_radius=15.0, blade_sweep=14.0, blade_thickness=1.25),
+        _stage_disk(-8.0, 36.0, 6.0, 20, "ipc_stage_6", hub_radius=14.5, blade_sweep=13.0, blade_thickness=1.2),
+        _stage_disk(6.0, 34.5, 6.0, 20, "ipc_stage_7", hub_radius=14.0, blade_sweep=12.0, blade_thickness=1.2),
+        _stage_disk(22.0, 33.0, 5.5, 18, "hpc_stage_1", hub_radius=13.5, blade_sweep=12.0, blade_thickness=1.15),
+        _stage_disk(34.0, 31.0, 5.5, 18, "hpc_stage_2", hub_radius=13.0, blade_sweep=11.0, blade_thickness=1.15),
+        _stage_disk(46.0, 29.5, 5.5, 18, "hpc_stage_3", hub_radius=12.5, blade_sweep=10.0, blade_thickness=1.1),
+        _stage_disk(58.0, 28.0, 5.5, 18, "hpc_stage_4", hub_radius=12.0, blade_sweep=9.0, blade_thickness=1.1),
+        _stage_disk(70.0, 27.0, 5.5, 18, "hpc_stage_5", hub_radius=12.0, blade_sweep=8.0, blade_thickness=1.1),
     ]
     turbine_stages = [
-        _stage_disk(84.0, 38.0, 6.5, 20, "n3_high_pressure_turbine", hub_radius=16.0, blade_sweep=-18.0),
-        _stage_disk(98.0, 44.0, 7.0, 20, "n2_intermediate_turbine", hub_radius=18.0, blade_sweep=-20.0),
-        _stage_disk(112.0, 50.0, 7.5, 22, "n1_low_pressure_turbine_1", hub_radius=20.0, blade_sweep=-22.0),
-        _stage_disk(124.0, 53.0, 7.5, 22, "n1_low_pressure_turbine_2", hub_radius=20.5, blade_sweep=-23.0),
-        _stage_disk(136.0, 56.0, 7.5, 22, "n1_low_pressure_turbine_3", hub_radius=21.0, blade_sweep=-24.0),
-        _stage_disk(148.0, REAR_TURBINE_RADIUS, 7.5, 22, "n1_low_pressure_turbine_4", hub_radius=22.0, blade_sweep=-25.0),
+        _stage_disk(84.0, 38.0, 6.5, 20, "n3_high_pressure_turbine", hub_radius=16.0, blade_sweep=-18.0, blade_thickness=1.35, root_chord_scale=0.095, tip_chord_scale=0.13),
+        _stage_disk(98.0, 44.0, 7.0, 20, "n2_intermediate_turbine", hub_radius=18.0, blade_sweep=-20.0, blade_thickness=1.4, root_chord_scale=0.1, tip_chord_scale=0.14),
+        _stage_disk(112.0, 50.0, 7.5, 22, "n1_low_pressure_turbine_1", hub_radius=20.0, blade_sweep=-22.0, blade_thickness=1.45, root_chord_scale=0.105, tip_chord_scale=0.145),
+        _stage_disk(124.0, 53.0, 7.5, 22, "n1_low_pressure_turbine_2", hub_radius=20.5, blade_sweep=-23.0, blade_thickness=1.45, root_chord_scale=0.105, tip_chord_scale=0.145),
+        _stage_disk(136.0, 56.0, 7.5, 22, "n1_low_pressure_turbine_3", hub_radius=21.0, blade_sweep=-24.0, blade_thickness=1.5, root_chord_scale=0.11, tip_chord_scale=0.15),
+        _stage_disk(148.0, REAR_TURBINE_RADIUS, 7.5, 22, "n1_low_pressure_turbine_4", hub_radius=22.0, blade_sweep=-25.0, blade_thickness=1.5, root_chord_scale=0.11, tip_chord_scale=0.15),
     ]
     core_drums = [
         _placed(_x_cylinder(22.0, 74.0), x=-36.0, z=SHAFT_CENTER_Z, label="ipc_core_drum"),
@@ -753,12 +791,19 @@ def build_printable_parts():
         "lower_nacelle_shell": make_lower_nacelle(),
         "cutaway_upper_shell": make_cutaway_upper_shell(),
         "rotor_cartridge": make_rotor_stack(),
-        "gearbox_cluster": make_gearbox_cluster(),
         "combustor_chamber": make_combustor_chamber(),
         "external_pipe_detail": make_external_pipes(),
         "afterburner_nozzle": make_afterburner_nozzle(),
+        "stator_ipc_1": make_stator_ring("stator_ipc_1", -71.0, 34.0, 54.0, 30, 2.2),
+        "stator_ipc_2": make_stator_ring("stator_ipc_2", -43.0, 31.0, 50.0, 30, 2.2),
+        "stator_ipc_3": make_stator_ring("stator_ipc_3", -15.0, 28.0, 43.0, 28, 2.0),
         "stator_front": make_stator_ring("stator_front", -57.0, 36.0, 57.0, 30, 3.8),
+        "stator_hpc_1": make_stator_ring("stator_hpc_1", 40.0, 24.0, 38.0, 26, 2.0),
+        "stator_hpc_2": make_stator_ring("stator_hpc_2", 64.0, 22.5, 35.0, 24, 2.0),
         "stator_mid": make_stator_ring("stator_mid", 28.0, 27.0, 45.0, 28, 3.5),
+        "stator_turbine_1": make_stator_ring("stator_turbine_1", 91.0, 32.0, 52.0, 30, 2.2),
+        "stator_turbine_2": make_stator_ring("stator_turbine_2", 118.0, 34.0, 58.0, 32, 2.2),
+        "stator_turbine_3": make_stator_ring("stator_turbine_3", 142.0, 36.0, 63.0, 34, 2.2),
         "stator_rear": make_stator_ring("stator_rear", 105.0, 35.0, 62.0, 32, 3.8),
     }
 
