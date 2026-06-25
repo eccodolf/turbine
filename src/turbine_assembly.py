@@ -126,14 +126,14 @@ def _arc_blocks(
 
 
 def _open_case_ring(x: float, radius: float, length: float, wall: float, label: str):
-    start_deg = -145.0
-    end_deg = 145.0
-    rim = _arc_blocks(x, radius - wall, radius, length, start_deg, end_deg, 34, f"{label}_rim")
-    end_caps = [
-        _radial_blade(x, radius - wall, radius, wall + 1.5, length, start_deg, 0.0, f"{label}_cut_edge_a"),
-        _radial_blade(x, radius - wall, radius, wall + 1.5, length, end_deg, 0.0, f"{label}_cut_edge_b"),
-    ]
-    return _label(Compound(children=[rim, *end_caps]), label)
+    ring = _duct_ring(x, radius, length, wall, f"{label}_continuous_ring")
+    cutaway = _placed(
+        Box(length + 4.0, radius * 1.15, radius * 2.6),
+        x=x,
+        y=radius * 0.72,
+        z=SHAFT_CENTER_Z,
+    )
+    return _label(ring - cutaway, label)
 
 
 def _radial_blade(
@@ -157,6 +157,25 @@ def _radial_blade(
 
 def _polar_point(radius: float, angle_deg: float):
     return (radius * cos(radians(angle_deg)), SHAFT_CENTER_Z + radius * sin(radians(angle_deg)))
+
+
+def _surface_point(x: float, radius: float, angle_deg: float):
+    y, z = _polar_point(radius, angle_deg)
+    return (x, y, z)
+
+
+def _radial_surface_box(
+    x: float,
+    radius: float,
+    angle_deg: float,
+    size_x: float,
+    tangent_width: float,
+    radial_height: float,
+    label: str,
+):
+    box = Rot(angle_deg - 90.0, 0, 0) * Box(size_x, tangent_width, radial_height)
+    y, z = _polar_point(radius, angle_deg)
+    return _placed(box, x=x, y=y, z=z, label=label)
 
 
 def _curved_blade(
@@ -287,11 +306,18 @@ def _open_vaned_ring(
     thickness_x: float,
     vane_count: int,
 ):
-    start_deg = -145.0
-    end_deg = 145.0
-    outer_rim = _arc_blocks(x_position, outer_radius - 4.0, outer_radius, thickness_x, start_deg, end_deg, 36, f"{name}_outer_rim")
-    inner_rim = _arc_blocks(x_position, inner_radius, inner_radius + 3.2, thickness_x, start_deg, end_deg, 30, f"{name}_inner_rim")
+    outer = _placed(_x_cylinder(outer_radius, thickness_x), x=x_position, z=SHAFT_CENTER_Z, label=f"{name}_outer")
+    inner_cut = _placed(_x_cylinder(inner_radius, thickness_x + 2.0), x=x_position, z=SHAFT_CENTER_Z)
+    cutaway = _placed(
+        Box(thickness_x + 4.0, outer_radius * 1.2, outer_radius * 2.7),
+        x=x_position,
+        y=outer_radius * 0.72,
+        z=SHAFT_CENTER_Z,
+    )
+    ring = outer - inner_cut - cutaway
     vanes = []
+    start_deg = 35.0
+    end_deg = 325.0
     for index in range(vane_count):
         angle = start_deg + (index + 0.5) * (end_deg - start_deg) / vane_count
         vanes.append(
@@ -307,11 +333,7 @@ def _open_vaned_ring(
                 label=f"{name}_vane_{index + 1:02d}",
             )
         )
-    end_caps = [
-        _radial_blade(x_position, inner_radius, outer_radius, 5.0, thickness_x, start_deg, 0.0, f"{name}_cut_edge_a"),
-        _radial_blade(x_position, inner_radius, outer_radius, 5.0, thickness_x, end_deg, 0.0, f"{name}_cut_edge_b"),
-    ]
-    return _label(Compound(children=[outer_rim, inner_rim, *vanes, *end_caps]), name)
+    return _label(Compound(children=[_label(ring, f"{name}_continuous_c_ring"), *vanes]), name)
 
 
 def _gear_wheel(x: float, y: float, radius: float, thickness: float, tooth_count: int, label: str):
@@ -358,6 +380,17 @@ def _bolt_circle(x: float, radius: float, count: int, bolt_radius: float, bolt_l
     bolts = []
     for index in range(count):
         angle = index * 360.0 / count
+        y, z = _polar_point(radius, angle)
+        bolts.append(_placed(_x_cylinder(bolt_radius, bolt_length), x=x, y=y, z=z, label=f"{label}_{index + 1:02d}"))
+    return _label(Compound(children=bolts), label)
+
+
+def _bolt_arc(x: float, radius: float, count: int, bolt_radius: float, bolt_length: float, label: str):
+    bolts = []
+    start_deg = 35.0
+    end_deg = 325.0
+    for index in range(count):
+        angle = start_deg + index * (end_deg - start_deg) / max(count - 1, 1)
         y, z = _polar_point(radius, angle)
         bolts.append(_placed(_x_cylinder(bolt_radius, bolt_length), x=x, y=y, z=z, label=f"{label}_{index + 1:02d}"))
     return _label(Compound(children=bolts), label)
@@ -416,7 +449,7 @@ def make_service_cover():
 def make_lower_nacelle():
     inlet_ring = _open_case_ring(-136.0, NACELLE_RADIUS + 8.0, 18.0, 6.0, "large_inlet_lip")
     inlet_round_lip = _placed(_x_torus(major_radius=NACELLE_RADIUS + 3.5, minor_radius=2.5), x=-145.0, z=SHAFT_CENTER_Z, label="rounded_inlet_lip")
-    front_bypass_stators = _open_vaned_ring("front_bypass_stator_cascade", -112.0, 55.0, 82.0, 8.0, 38)
+    front_bypass_stators = _open_vaned_ring("front_bypass_stator_cascade", -96.0, 76.0, 82.0, 3.5, 32)
     fan_case_ring = _open_case_ring(-96.0, NACELLE_RADIUS + 1.0, 8.0, 4.0, "front_fan_case_ring")
     ipc_case_ring = _open_case_ring(-42.0, 55.0, 8.0, 4.0, "intermediate_compressor_case_ring")
     hpc_case_ring = _open_case_ring(18.0, 45.0, 8.0, 4.0, "high_pressure_compressor_case_ring")
@@ -424,15 +457,17 @@ def make_lower_nacelle():
     nozzle_ring = _open_case_ring(142.0, 64.0, 14.0, 4.0, "rear_nozzle_ring")
     nozzle_round_lip = _placed(_x_torus(major_radius=61.0, minor_radius=2.0), x=153.0, z=SHAFT_CENTER_Z, label="rounded_nozzle_lip")
     flange_bolts = [
-        _bolt_circle(-136.0, 83.5, 36, 1.3, 2.2, "inlet_flange_bolt"),
-        _bolt_circle(92.0, 56.5, 28, 1.2, 2.0, "turbine_case_bolt"),
-        _bolt_circle(142.0, 62.0, 24, 1.2, 2.0, "nozzle_flange_bolt"),
+        _bolt_arc(-136.0, 83.5, 30, 1.3, 2.2, "inlet_flange_bolt"),
+        _bolt_arc(92.0, 56.5, 22, 1.2, 2.0, "turbine_case_bolt"),
+        _bolt_arc(142.0, 62.0, 18, 1.2, 2.0, "nozzle_flange_bolt"),
     ]
     lower_keel = _placed(Box(288.0, 10.0, 7.0), x=2.0, z=SHAFT_CENTER_Z - 73.0, label="lower_cutaway_keel")
     left_cut_edge = _placed(Box(278.0, 5.0, 6.0), x=2.0, y=-NACELLE_RADIUS + 6.0, z=SHAFT_CENTER_Z + 2.0, label="left_section_edge")
     right_cut_edge = _placed(Box(278.0, 5.0, 6.0), x=2.0, y=NACELLE_RADIUS - 6.0, z=SHAFT_CENTER_Z + 2.0, label="right_section_edge")
     bypass_floor_left = _placed(Box(255.0, 5.0, 5.0), x=8.0, y=-42.0, z=SHAFT_CENTER_Z - 54.0, label="left_bypass_floor_rail")
     bypass_floor_right = _placed(Box(255.0, 5.0, 5.0), x=8.0, y=42.0, z=SHAFT_CENTER_Z - 54.0, label="right_bypass_floor_rail")
+    upper_service_skin = _radial_surface_box(0.0, NACELLE_RADIUS, 153.0, 276.0, 24.0, 5.0, "upper_service_cowl_skin")
+    lower_service_skin = _radial_surface_box(9.0, NACELLE_RADIUS - 3.0, 221.0, 258.0, 18.0, 5.0, "lower_service_cowl_skin")
     mount_saddle = _placed(Box(176.0, 18.0, 8.0), x=-12.0, z=BASE_HEIGHT + 8.0, label="engine_mount_saddle")
     return _label(
         Compound(
@@ -452,6 +487,8 @@ def make_lower_nacelle():
                 right_cut_edge,
                 bypass_floor_left,
                 bypass_floor_right,
+                upper_service_skin,
+                lower_service_skin,
                 mount_saddle,
             ]
         ),
@@ -460,21 +497,19 @@ def make_lower_nacelle():
 
 
 def make_cutaway_upper_shell():
-    cutaway_y = -72.0
-    top_spine = _placed(Box(266.0, 9.0, 7.0), x=0.0, y=cutaway_y, z=SHAFT_CENTER_Z + 78.0, label="upper_nacelle_spine")
-    inlet_top = _placed(Box(74.0, 9.0, 7.0), x=-123.0, y=cutaway_y, z=SHAFT_CENTER_Z + 87.0, label="squared_inlet_upper_lip")
-    fan_case_top = _placed(Box(36.0, 9.0, 8.0), x=-103.0, y=cutaway_y, z=SHAFT_CENTER_Z + 71.0, label="front_fan_case_upper_rail")
-    core_top = _placed(Box(128.0, 9.0, 7.0), x=20.0, y=cutaway_y, z=SHAFT_CENTER_Z + 47.0, label="core_case_upper_rail")
-    rear_flare_top = _placed(Box(96.0, 9.0, 7.0), x=107.0, y=cutaway_y, z=SHAFT_CENTER_Z + 64.0, label="rear_nozzle_upper_rail")
-    front_bulkhead = _placed(Box(7.0, 9.0, 126.0), x=-145.0, y=cutaway_y, z=SHAFT_CENTER_Z + 1.0, label="front_cutaway_bulkhead")
-    rear_bulkhead = _placed(Box(7.0, 9.0, 108.0), x=151.0, y=cutaway_y, z=SHAFT_CENTER_Z, label="rear_cutaway_bulkhead")
-    pylon_links = [
-        _placed(Box(16.0, 8.0, 44.0), x=-28.0, y=cutaway_y, z=SHAFT_CENTER_Z + 58.0, label="upper_service_pylon_forward"),
-        _placed(Box(16.0, 8.0, 38.0), x=72.0, y=cutaway_y, z=SHAFT_CENTER_Z + 56.0, label="upper_service_pylon_rear"),
+    inlet_cowl_edge = _open_case_ring(-132.0, NACELLE_RADIUS + 3.0, 6.0, 3.0, "inlet_cutaway_cowl_edge")
+    fan_cowl_edge = _open_case_ring(-96.0, NACELLE_RADIUS - 2.0, 5.0, 3.0, "fan_cutaway_cowl_edge")
+    core_cowl_edge = _open_case_ring(12.0, 50.0, 5.0, 3.0, "core_cutaway_cowl_edge")
+    rear_cowl_edge = _open_case_ring(122.0, 61.0, 5.0, 3.0, "rear_cutaway_cowl_edge")
+    cowl_connectors = [
+        _radial_surface_box(-5.0, NACELLE_RADIUS + 1.0, 153.0, 264.0, 10.0, 5.0, "upper_cowl_longeron"),
+        _radial_surface_box(-5.0, NACELLE_RADIUS - 3.0, 215.0, 264.0, 10.0, 5.0, "lower_cowl_longeron"),
+        _radial_surface_box(-96.0, NACELLE_RADIUS + 1.0, 153.0, 22.0, 15.0, 6.0, "front_cowl_latch_pad"),
+        _radial_surface_box(92.0, NACELLE_RADIUS + 1.0, 153.0, 22.0, 15.0, 6.0, "rear_cowl_latch_pad"),
     ]
     return _label(
-        Compound(children=[top_spine, inlet_top, fan_case_top, core_top, rear_flare_top, front_bulkhead, rear_bulkhead, *pylon_links]),
-        "upper_cutaway_outline",
+        Compound(children=[inlet_cowl_edge, fan_cowl_edge, core_cowl_edge, rear_cowl_edge, *cowl_connectors]),
+        "optional_removed_cutaway_cowl",
     )
 
 
@@ -511,21 +546,74 @@ def make_combustor_chamber():
 
 
 def make_external_pipes():
+    upper_angle = 153.0
+    lower_angle = 221.0
+    upper_pipe_radius = NACELLE_RADIUS + 5.0
+    lower_pipe_radius = NACELLE_RADIUS + 1.8
+    upper_saddle_radius = NACELLE_RADIUS + 4.0
+    lower_saddle_radius = NACELLE_RADIUS + 0.8
+
     upper_fuel_line = _pipe_run(
-        [(-95.0, -68.0, 171.0), (-32.0, -68.0, 171.0), (28.0, -62.0, 162.0), (82.0, -56.0, 158.0)],
-        3.0,
+        [_surface_point(x, upper_pipe_radius, upper_angle) for x in (-108.0, -54.0, 0.0, 54.0, 108.0)],
+        2.4,
         "upper_fuel_line",
     )
     lower_oil_line = _pipe_run(
-        [(-88.0, 66.0, 76.0), (-16.0, 66.0, 74.0), (48.0, 58.0, 83.0), (120.0, 52.0, 94.0)],
-        3.0,
+        [_surface_point(x, lower_pipe_radius, lower_angle) for x in (-106.0, -50.0, 8.0, 66.0, 124.0)],
+        2.4,
         "lower_oil_line",
     )
-    sensor_boxes = [
-        _placed(Box(12.0, 8.0, 8.0), x=-18.0, y=-68.0, z=171.0, label="sensor_box_forward"),
-        _placed(Box(12.0, 8.0, 8.0), x=72.0, y=52.0, z=94.0, label="sensor_box_rear"),
+    clamp_specs = [
+        (-96.0, upper_pipe_radius, upper_angle, "upper_pipe_clamp_fan_case"),
+        (-42.0, upper_pipe_radius, upper_angle, "upper_pipe_clamp_ipc_case"),
+        (18.0, upper_pipe_radius, upper_angle, "upper_pipe_clamp_hpc_case"),
+        (92.0, upper_pipe_radius, upper_angle, "upper_pipe_clamp_turbine_case"),
+        (-96.0, lower_pipe_radius, lower_angle, "lower_pipe_clamp_fan_case"),
+        (-42.0, lower_pipe_radius, lower_angle, "lower_pipe_clamp_ipc_case"),
+        (18.0, lower_pipe_radius, lower_angle, "lower_pipe_clamp_hpc_case"),
+        (92.0, lower_pipe_radius, lower_angle, "lower_pipe_clamp_turbine_case"),
     ]
-    return _label(Compound(children=[upper_fuel_line, lower_oil_line, *sensor_boxes]), "external_pipe_detail")
+    clamps = [
+        _radial_surface_box(x, radius, angle, 8.0, 9.0, 8.0, label)
+        for x, radius, angle, label in clamp_specs
+    ]
+    saddle_pads = []
+    support_webs = []
+    for x, _, _, label in clamp_specs:
+        if label.startswith("upper"):
+            saddle_pads.append(_radial_surface_box(x, upper_saddle_radius, upper_angle, 18.0, 13.0, 3.0, f"{label}_saddle"))
+            support_webs.append(
+                _radial_surface_box(
+                    x,
+                    (upper_saddle_radius + upper_pipe_radius) / 2.0,
+                    upper_angle,
+                    5.0,
+                    5.0,
+                    upper_pipe_radius - upper_saddle_radius,
+                    f"{label}_radial_web",
+                )
+            )
+        else:
+            saddle_pads.append(_radial_surface_box(x, lower_saddle_radius, lower_angle, 18.0, 13.0, 3.0, f"{label}_saddle"))
+            support_webs.append(
+                _radial_surface_box(
+                    x,
+                    (lower_saddle_radius + lower_pipe_radius) / 2.0,
+                    lower_angle,
+                    5.0,
+                    5.0,
+                    lower_pipe_radius - lower_saddle_radius,
+                    f"{label}_radial_web",
+                )
+            )
+    sensor_boxes = [
+        _radial_surface_box(-20.0, upper_saddle_radius + 1.0, upper_angle, 14.0, 12.0, 8.0, "upper_fairing_sensor_box"),
+        _radial_surface_box(72.0, lower_saddle_radius + 1.0, lower_angle, 14.0, 12.0, 8.0, "lower_fairing_sensor_box"),
+    ]
+    return _label(
+        Compound(children=[upper_fuel_line, lower_oil_line, *clamps, *saddle_pads, *support_webs, *sensor_boxes]),
+        "external_pipe_detail",
+    )
 
 
 def make_afterburner_nozzle():
@@ -620,8 +708,9 @@ def make_stator_ring(
     inner_radius: float = 34.0,
     outer_radius: float = 52.0,
     vane_count: int = 26,
+    thickness_x: float = 3.8,
 ):
-    return _open_vaned_ring(name, x_position, inner_radius, outer_radius, 7.0, vane_count)
+    return _open_vaned_ring(name, x_position, inner_radius, outer_radius, thickness_x, vane_count)
 
 
 def make_gearbox_cluster():
@@ -668,16 +757,17 @@ def build_printable_parts():
         "combustor_chamber": make_combustor_chamber(),
         "external_pipe_detail": make_external_pipes(),
         "afterburner_nozzle": make_afterburner_nozzle(),
-        "stator_front": make_stator_ring("stator_front", -66.0, 36.0, 57.0, 30),
-        "stator_mid": make_stator_ring("stator_mid", 24.0, 27.0, 45.0, 28),
-        "stator_rear": make_stator_ring("stator_rear", 108.0, 35.0, 62.0, 32),
+        "stator_front": make_stator_ring("stator_front", -57.0, 36.0, 57.0, 30, 3.8),
+        "stator_mid": make_stator_ring("stator_mid", 28.0, 27.0, 45.0, 28, 3.5),
+        "stator_rear": make_stator_ring("stator_rear", 105.0, 35.0, 62.0, 32, 3.8),
     }
 
 
 def gen_step():
     parts = build_printable_parts()
     hardware = make_reference_hardware()
-    return _label(Compound(children=[*parts.values(), hardware]), "powered_cutaway_turbine")
+    installed_parts = [part for name, part in parts.items() if name != "cutaway_upper_shell"]
+    return _label(Compound(children=[*installed_parts, hardware]), "powered_cutaway_turbine")
 
 
 def export_printable_parts(output_dir: str | Path = "models/parts"):
