@@ -4,6 +4,9 @@
 output/
 dist/
 build/
+references/
+references/*.jpeg
+references/*.png
 *.stl
 !models/stl/
 !models/stl/*.stl

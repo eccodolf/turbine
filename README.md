@@ -8,13 +8,16 @@ The approved concept is documented in `docs/superpowers/specs/2026-06-25-powered
 
 - Contributor guide: `AGENTS.md`
 - Design spec: `docs/superpowers/specs/2026-06-25-powered-cutaway-turbine-design.md`
+- Archive reference mapping: `docs/archive-reference-mapping.md`
 - CAD source: `src/turbine_assembly.py`
 - Primary assembly STEP: `models/turbine_assembly.step`
 - Printable part STEP files: `models/parts/`
 
-## Planned Model
+## Model Features
 
-- Half-cutaway nacelle
+- Trent-style high-bypass cutaway nacelle with rounded inlet/nozzle lips and open C-section stator cascades
+- 24-blade swept front fan with curved airfoil profiles, spinner stripes, seven IPC stages, five HPC stages, and N1/N2/N3 turbine stages
+- Visible planetary gearbox cluster, annular combustor liner detail, flange bolts, and external pipe detail
 - Removable rotor cartridge on an 8 mm shaft
 - 608 bearing supports
 - Hidden GT2 belt-drive display base
@@ -44,7 +47,7 @@ Generated files:
 - `models/parts/*.step`
 - `models/stl/*.stl`
 
-STEP files are the primary CAD artifacts. STL files are derived printable sidecars and are included for immediate slicing; regenerate them from `src/turbine_assembly.py` when geometry changes.
+Printable groups include the drive base, service cover, lower nacelle frame, upper cutaway outline, rotor cartridge, gearbox cluster, combustor chamber, external pipe detail, rear nozzle, and three stator rings. STEP files are the primary CAD artifacts. STL files are derived printable sidecars and are included for immediate slicing; regenerate them from `src/turbine_assembly.py` when geometry changes.
 
 ## Validation Workflow
 
